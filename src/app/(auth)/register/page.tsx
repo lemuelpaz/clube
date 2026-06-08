@@ -1,20 +1,41 @@
-﻿'use client'
+'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
-import { Crown, User, Heart, ChevronRight, Eye, EyeOff } from 'lucide-react'
+import { Crown, User, Heart, ChevronRight, Eye, EyeOff, Camera, Plus, X, ImageIcon } from 'lucide-react'
 import { INTERESTS, formatCPF, validateCPF } from '@/lib/utils'
 import LocationPicker from '@/components/LocationPicker'
 
-type Step = 'role' | 'form' | 'questionnaire'
+type Step = 'role' | 'form' | 'questionnaire' | 'photos'
 
 const LOOKING_FOR_OPTIONS = ['Companhia', 'Apoio financeiro', 'Viagens', 'Mentoria', 'Relação discreta']
 const ALLOWANCE_OPTIONS = ['R$1.000 - R$3.000', 'R$3.000 - R$7.000', 'R$7.000 - R$15.000', 'Acima de R$15.000', 'Flexível']
 const FREQUENCY_OPTIONS = ['1-2x por mês', '1x por semana', 'Mais de 1x/semana', 'Flexível']
 const ACTIVITIES_OPTIONS = ['Jantares finos', 'Viagens nacionais', 'Viagens internacionais', 'Shows e eventos', 'Spa e beleza', 'Compras']
 const AVAILABILITY_OPTIONS = ['Apenas fins de semana', 'Dias úteis', 'Flexível', 'Somente virtual']
+
+async function compressImage(file: File): Promise<string> {
+  return new Promise(resolve => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const max = 900
+      let { width, height } = img
+      if (width > max || height > max) {
+        if (width > height) { height = Math.round((height * max) / width); width = max }
+        else { width = Math.round((width * max) / height); height = max }
+      }
+      canvas.width = width; canvas.height = height
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+      URL.revokeObjectURL(url)
+      resolve(canvas.toDataURL('image/jpeg', 0.82))
+    }
+    img.src = url
+  })
+}
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -38,6 +59,11 @@ export default function RegisterPage() {
     availability: '',
     description: '',
   })
+
+  // Photos step
+  const [photos, setPhotos] = useState<string[]>([])
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   function toggleInterest(i: string) {
     setSelectedInterests(prev =>
@@ -80,6 +106,20 @@ export default function RegisterPage() {
     }
   }
 
+  async function handlePhotoFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setUploadingPhoto(true)
+    const compressed = await Promise.all(files.map(compressImage))
+    setPhotos(prev => [...prev, ...compressed].slice(0, 6))
+    setUploadingPhoto(false)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  function removePhoto(idx: number) {
+    setPhotos(prev => prev.filter((_, i) => i !== idx))
+  }
+
   async function submitRegistration() {
     setLoading(true); setError('')
 
@@ -104,6 +144,17 @@ export default function RegisterPage() {
 
     if (loginResult?.error) { setError('Conta criada mas erro ao entrar'); setLoading(false); return }
 
+    // Save photos right after login if any were added
+    if (photos.length > 0 && data.user?.id) {
+      try {
+        await fetch(`/api/users/${data.user.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photos }),
+        })
+      } catch {}
+    }
+
     if (role === 'FEMALE') router.push('/verification')
     else router.push('/subscription')
   }
@@ -116,7 +167,47 @@ export default function RegisterPage() {
     if (sugarProfile.lookingFor.length === 0) {
       setError('Selecione o que você está procurando'); return
     }
+    setError('')
+    setStep('photos')
+  }
+
+  async function handlePhotosSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (photos.length === 0) {
+      setError('Adicione pelo menos uma foto do seu perfil'); return
+    }
     await submitRegistration()
+  }
+
+  // Step indicator for female flow
+  const FEMALE_STEPS = ['Dados', 'Perfil', 'Fotos']
+  const stepIndex = step === 'form' ? 0 : step === 'questionnaire' ? 1 : step === 'photos' ? 2 : -1
+
+  function StepBar() {
+    if (role !== 'FEMALE' || stepIndex < 0) return null
+    return (
+      <div className="flex items-center gap-0 mb-6">
+        {FEMALE_STEPS.map((label, i) => (
+          <div key={label} className="flex items-center flex-1">
+            <div className={`flex items-center gap-1.5 flex-1 ${i < FEMALE_STEPS.length - 1 ? '' : ''}`}>
+              <div className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 transition-all ${
+                i < stepIndex ? 'bg-gold-500 text-dark-900' :
+                i === stepIndex ? 'bg-gold-500/20 border-2 border-gold-500 text-gold-400' :
+                'bg-dark-700 border border-dark-500 text-dark-400'
+              }`}>
+                {i < stepIndex ? '✓' : i + 1}
+              </div>
+              <span className={`text-xs font-medium ${i === stepIndex ? 'text-gold-400' : i < stepIndex ? 'text-dark-200' : 'text-dark-500'}`}>
+                {label}
+              </span>
+              {i < FEMALE_STEPS.length - 1 && (
+                <div className={`flex-1 h-px mx-2 ${i < stepIndex ? 'bg-gold-500/40' : 'bg-dark-600'}`} />
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
   }
 
   // ── ROLE STEP ──────────────────────────────────────────────────────────────
@@ -156,18 +247,131 @@ export default function RegisterPage() {
     )
   }
 
+  // ── PHOTOS STEP (FEMALE) ───────────────────────────────────────────────────
+  if (step === 'photos') {
+    return (
+      <div className="w-full max-w-2xl">
+        <div className="glass rounded-2xl p-8 border border-gold-500/10">
+          <div className="flex items-center gap-3 mb-2">
+            <button onClick={() => { setStep('questionnaire'); setError('') }} className="text-dark-300 hover:text-dark-50 transition-colors">←</button>
+            <div>
+              <h1 className="text-xl font-bold">Fotos do Perfil</h1>
+              <p className="text-dark-200 text-sm">Adicione fotos para atrair mais matches</p>
+            </div>
+          </div>
+
+          <StepBar />
+
+          <form onSubmit={handlePhotosSubmit} className="space-y-5">
+            <div className="bg-dark-700/40 border border-dark-600 rounded-xl px-4 py-3 text-sm text-dark-300 flex items-start gap-2">
+              <ImageIcon size={15} className="shrink-0 mt-0.5 text-gold-400" />
+              <span>Adicione ao menos <strong className="text-dark-100">1 foto</strong>. Perfis com fotos têm muito mais chance de match. Máx. 6 fotos.</span>
+            </div>
+
+            {/* Photo grid */}
+            <div className="grid grid-cols-3 gap-3">
+              {photos.map((src, idx) => (
+                <div key={idx} className="relative aspect-[3/4] rounded-xl overflow-hidden bg-dark-700 border border-dark-600 group">
+                  <img src={src} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
+                  {idx === 0 && (
+                    <div className="absolute top-1.5 left-1.5 bg-gold-500 text-dark-900 text-[9px] font-bold px-1.5 py-0.5 rounded-md">
+                      Principal
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(idx)}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+
+              {photos.length < 6 && (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="aspect-[3/4] rounded-xl border-2 border-dashed border-dark-500 hover:border-gold-500/50 bg-dark-800 hover:bg-dark-700 flex flex-col items-center justify-center gap-2 transition-all disabled:opacity-50"
+                >
+                  {uploadingPhoto ? (
+                    <div className="w-6 h-6 border-2 border-gold-500/30 border-t-gold-500 rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-full bg-dark-700 border border-dark-500 flex items-center justify-center">
+                        <Plus size={18} className="text-dark-300" />
+                      </div>
+                      <span className="text-[11px] text-dark-400 text-center px-2">
+                        {photos.length === 0 ? 'Adicionar foto' : 'Mais foto'}
+                      </span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handlePhotoFiles}
+            />
+
+            {photos.length === 0 && (
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="w-full py-3 rounded-xl border-2 border-dashed border-gold-500/30 hover:border-gold-500/60 bg-gold-500/5 text-gold-400 text-sm font-medium flex items-center justify-center gap-2 transition-all"
+              >
+                <Camera size={16} />
+                Escolher fotos da galeria
+              </button>
+            )}
+
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-sm text-red-400">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || photos.length === 0}
+              className="w-full bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-50 font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-dark-900/30 border-t-dark-900 rounded-full animate-spin" />
+              ) : (
+                <><span>Finalizar Cadastro</span><ChevronRight size={18} /></>
+              )}
+            </button>
+
+            <p className="text-center text-xs text-dark-400">
+              Suas fotos só aparecem para usuários com match ou assinantes.
+            </p>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
   // ── QUESTIONNAIRE STEP (FEMALE) ────────────────────────────────────────────
   if (step === 'questionnaire') {
     return (
       <div className="w-full max-w-2xl">
         <div className="glass rounded-2xl p-8 border border-gold-500/10">
-          <div className="flex items-center gap-3 mb-6">
-            <button onClick={() => setStep('form')} className="text-dark-300 hover:text-dark-50 transition-colors">←</button>
+          <div className="flex items-center gap-3 mb-2">
+            <button onClick={() => { setStep('form'); setError('') }} className="text-dark-300 hover:text-dark-50 transition-colors">←</button>
             <div>
-              <h1 className="text-xl font-bold">Perfil Sugar</h1>
+              <h1 className="text-xl font-bold">Perfil</h1>
               <p className="text-dark-200 text-sm">Conte mais sobre o que você busca</p>
             </div>
           </div>
+
+          <StepBar />
 
           <form onSubmit={handleQuestionnaireSubmit} className="space-y-6">
             {/* Q1: O que você procura */}
@@ -268,7 +472,7 @@ export default function RegisterPage() {
             {/* Q6: Descrição livre */}
             <div>
               <label className="block text-sm font-semibold text-dark-100 mb-2">
-                Como você se descreveria para um sugar daddy? (opcional)
+                Como você se descreveria? (opcional)
               </label>
               <textarea
                 value={sugarProfile.description}
@@ -287,14 +491,9 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-dark-50 font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-gold-500 hover:bg-gold-400 text-dark-50 font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
             >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-dark-900/30 border-t-dark-900 rounded-full animate-spin" />
-              ) : (
-                <><span>Finalizar Cadastro</span><ChevronRight size={18} /></>
-              )}
+              <span>Próximo — Fotos</span><ChevronRight size={18} />
             </button>
           </form>
         </div>
@@ -306,7 +505,7 @@ export default function RegisterPage() {
   return (
     <div className="w-full max-w-2xl">
       <div className="glass rounded-2xl p-8 border border-gold-500/10">
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-4">
           <button onClick={() => setStep('role')} className="text-dark-300 hover:text-dark-50 transition-colors">←</button>
           <div>
             <h1 className="text-xl font-bold">
@@ -317,6 +516,8 @@ export default function RegisterPage() {
             </p>
           </div>
         </div>
+
+        {role === 'FEMALE' && <StepBar />}
 
         <form onSubmit={handleFormNext} className="space-y-4">
           {/* Nome */}
@@ -437,4 +638,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
