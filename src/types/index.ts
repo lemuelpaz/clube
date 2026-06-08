@@ -30,6 +30,7 @@ export interface User {
   interests?: string[]
   sugarProfile?: SugarProfile
   verified: boolean
+  hidden?: boolean
   balance?: number
   bankDetails?: BankDetails
   lastSeen?: string

@@ -193,6 +193,8 @@ CREATE TABLE IF NOT EXISTS promotions (
   created_at TEXT NOT NULL,
   UNIQUE(code)
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS hidden BOOLEAN NOT NULL DEFAULT FALSE;
 `
 
 let initPromise: Promise<void> | null = null

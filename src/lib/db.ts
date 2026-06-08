@@ -27,6 +27,7 @@ function rowToUser(r: any): User {
     sugarProfile: r.sugar_profile ?? undefined,
     bankDetails: r.bank_details ?? undefined,
     verified: r.verified,
+    hidden: r.hidden ?? false,
     balance: Number(r.balance ?? 0),
     lastSeen: r.last_seen ?? undefined,
     createdAt: r.created_at,
@@ -158,7 +159,7 @@ const USER_COLS: Record<string, string> = {
   status: 'status', cpf: 'cpf', phone: 'phone', birthDate: 'birth_date',
   city: 'city', state: 'state', photos: 'photos', bio: 'bio',
   interests: 'interests', sugarProfile: 'sugar_profile', bankDetails: 'bank_details',
-  verified: 'verified', balance: 'balance', lastSeen: 'last_seen',
+  verified: 'verified', hidden: 'hidden', balance: 'balance', lastSeen: 'last_seen',
   updatedAt: 'updated_at',
 }
 

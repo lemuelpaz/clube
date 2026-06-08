@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
     if (u.id === userId) return false
     if (u.role !== targetRole) return false
     if (u.status !== 'ACTIVE') return false
+    if (u.hidden) return false
     if (blocked.includes(u.id)) return false
     if (role === 'FEMALE' && !onlyVerified) return true
     if (role === 'MALE' && !u.verified) return false // males only see verified females

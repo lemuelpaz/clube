@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   Shield, MapPin, Camera, Plus, X, Edit2, Save,
-  Check, Grid3X3, LogOut, Settings
+  Check, Grid3X3, LogOut, Settings, EyeOff, Eye
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import { calculateAge, isOnline, INTERESTS } from '@/lib/utils'
@@ -110,6 +110,11 @@ export default function MyProfilePage() {
       setSaveError(err?.message ?? 'Erro ao salvar. Tente novamente.')
     }
     setSavingInfo(false)
+  }
+
+  async function toggleHidden() {
+    const next = !profile.hidden
+    await patchUser({ hidden: next })
   }
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -285,6 +290,38 @@ export default function MyProfilePage() {
             <p className="text-xs text-dark-300 mt-0.5">status</p>
           </div>
         </div>
+
+        {/* Hidden profile toggle */}
+        <button
+          onClick={toggleHidden}
+          className={`mt-3 w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
+            profile.hidden
+              ? 'bg-dark-700/80 border-dark-500 text-dark-100'
+              : 'bg-dark-800/60 border-dark-600/60 text-dark-300 hover:border-dark-500'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {profile.hidden
+              ? <EyeOff size={16} className="text-yellow-400 shrink-0" />
+              : <Eye size={16} className="text-dark-400 shrink-0" />
+            }
+            <div className="text-left">
+              <p className="text-sm font-medium leading-tight">
+                {profile.hidden ? 'Perfil oculto' : 'Perfil visível'}
+              </p>
+              <p className="text-[11px] text-dark-400 mt-0.5">
+                {profile.hidden
+                  ? 'Você não aparece em Descobrir. Seus matches continuam ativos.'
+                  : 'Seu perfil aparece para outros usuários em Descobrir.'
+                }
+              </p>
+            </div>
+          </div>
+          {/* Toggle pill */}
+          <div className={`relative w-10 h-5.5 h-[22px] rounded-full transition-colors shrink-0 ${profile.hidden ? 'bg-yellow-500' : 'bg-dark-500'}`}>
+            <span className={`absolute top-0.5 w-[18px] h-[18px] rounded-full bg-white shadow transition-all ${profile.hidden ? 'left-[calc(100%-20px)]' : 'left-0.5'}`} />
+          </div>
+        </button>
 
         {/* Bio */}
         <div className="mt-3">
