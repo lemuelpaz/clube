@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect } from 'react'
-import { Shield, UserX, UserCheck, Ban, Search, Filter } from 'lucide-react'
+import { Shield, UserX, UserCheck, Ban, Search, Trash2, AlertTriangle } from 'lucide-react'
 import { timeAgo, calculateAge } from '@/lib/utils'
 
 interface UserData {
@@ -16,6 +16,8 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL')
   const [acting, setActing] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<UserData | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   async function load() {
     const res = await fetch('/api/admin/users')
@@ -33,6 +35,18 @@ export default function AdminUsersPage() {
       body: JSON.stringify({ userId, action }),
     })
     await load(); setActing(null)
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    await fetch('/api/admin/users', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: deleteTarget.id }),
+    })
+    setDeleteTarget(null)
+    setDeleting(false)
+    await load()
   }
 
   const filtered = users.filter(u => {
@@ -147,6 +161,14 @@ export default function AdminUsersPage() {
                               <UserCheck size={14} />
                             </button>
                           )}
+                          <button
+                            onClick={() => setDeleteTarget(u)}
+                            disabled={acting === u.id}
+                            className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors ml-1"
+                            title="Excluir usuário"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -160,6 +182,60 @@ export default function AdminUsersPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6">
+          <div className="bg-dark-800 border border-red-500/20 rounded-2xl w-full max-w-md p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-11 h-11 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base">Excluir usuário permanentemente?</h3>
+                <p className="text-xs text-dark-400 mt-0.5">Esta ação não pode ser desfeita.</p>
+              </div>
+            </div>
+
+            <div className="bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 mb-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full overflow-hidden bg-dark-600 shrink-0">
+                {deleteTarget.photos[0] ? (
+                  <img src={deleteTarget.photos[0]} alt={deleteTarget.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gold-400">{deleteTarget.name[0]}</div>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium">{deleteTarget.name}</p>
+                <p className="text-xs text-dark-400">{deleteTarget.email}</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-dark-300 mb-5">
+              Todos os dados do usuário serão apagados em cascata: mensagens, matches, favoritos, denúncias, assinaturas, fotos de solicitações e histórico financeiro.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-2.5 rounded-xl border border-dark-600 text-dark-200 hover:border-dark-500 text-sm font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deleting
+                  ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <><Trash2 size={14} />Excluir permanentemente</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
