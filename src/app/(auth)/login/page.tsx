@@ -4,7 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signIn, getSession } from 'next-auth/react'
-import { Eye, EyeOff, LogIn, Crown } from 'lucide-react'
+import Image from 'next/image'
+import { Eye, EyeOff, LogIn } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -42,8 +43,8 @@ export default function LoginPage() {
     <div className="w-full max-w-md">
       <div className="glass rounded-2xl p-8 border border-gold-500/10">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center mx-auto mb-4">
-            <Crown className="text-gold-400" size={28} />
+          <div className="mx-auto mb-6 w-40">
+            <Image src="/elite1.png" alt="Logo" width={160} height={160} className="w-full h-auto" priority />
           </div>
           <h1 className="text-2xl font-bold">Bem-vindo de volta</h1>
           <p className="text-dark-200 text-sm mt-1">Entre na sua conta</p>
@@ -99,18 +100,19 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-dark-300">
+        <div className="mt-4 text-center">
+          <Link href="/forgot-password" className="text-sm text-dark-400 hover:text-gold-400 transition-colors">
+            Esqueci minha senha
+          </Link>
+        </div>
+
+        <div className="mt-4 text-center text-sm text-dark-300">
           Não tem conta?{' '}
           <Link href="/register" className="text-gold-400 hover:text-gold-300 font-medium transition-colors">
             Criar conta
           </Link>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-dark-600 text-xs text-dark-400 text-center space-y-1">
-          <p>Demo — Admin: <span className="text-gold-500">admin@clubeelite.com</span> / admin123</p>
-          <p>Homem: <span className="text-gold-500">carlos@email.com</span> / senha123</p>
-          <p>Mulher: <span className="text-gold-500">ana@email.com</span> / senha123</p>
-        </div>
       </div>
     </div>
   )

@@ -195,6 +195,26 @@ CREATE TABLE IF NOT EXISTS promotions (
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS hidden BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  token TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TEXT NOT NULL,
+  used BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS smtp_config (
+  id TEXT PRIMARY KEY,
+  host TEXT NOT NULL,
+  port INTEGER NOT NULL,
+  secure BOOLEAN NOT NULL DEFAULT FALSE,
+  user TEXT NOT NULL,
+  password TEXT NOT NULL,
+  from_email TEXT NOT NULL,
+  from_name TEXT NOT NULL DEFAULT 'Clube Elite',
+  updated_at TEXT NOT NULL
+);
 `
 
 let initPromise: Promise<void> | null = null

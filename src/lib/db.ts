@@ -3,7 +3,7 @@ import type {
   User, Verification, Like, Match,
   Message, Subscription, ProfileVisit, Report, Block, Favorite,
   HotRequest, Earning, WithdrawalRequest, PaymentConfig,
-  PlanPrice, Promotion,
+  PlanPrice, Promotion, SmtpConfig,
 } from '@/types'
 
 // ─── Row mappers ────────────────────────────────────────────────────────────
@@ -704,5 +704,52 @@ export const db = {
 
   incrementPromotionUses: async (id: string): Promise<void> => {
     await query('UPDATE promotions SET uses = uses + 1 WHERE id = $1', [id])
+  },
+
+  // ── Password Reset Tokens ──────────────────────────────────────────────────
+  createPasswordResetToken: async (token: string, userId: string, expiresAt: string): Promise<void> => {
+    // Invalidate any existing unused tokens for this user
+    await query('UPDATE password_reset_tokens SET used = TRUE WHERE user_id = $1 AND used = FALSE', [userId])
+    await query(
+      `INSERT INTO password_reset_tokens (token, user_id, expires_at, used, created_at)
+       VALUES ($1, $2, $3, FALSE, $4)`,
+      [token, userId, expiresAt, new Date().toISOString()],
+    )
+  },
+
+  getPasswordResetToken: async (token: string) => {
+    return queryOne<{ token: string; user_id: string; expires_at: string; used: boolean }>(
+      'SELECT * FROM password_reset_tokens WHERE token = $1',
+      [token],
+    )
+  },
+
+  markPasswordResetTokenUsed: async (token: string): Promise<void> => {
+    await query('UPDATE password_reset_tokens SET used = TRUE WHERE token = $1', [token])
+  },
+
+  // ── SMTP Config ───────────────────────────────────────────────────────────
+  getSmtpConfig: async (): Promise<SmtpConfig | null> => {
+    const r = await queryOne("SELECT * FROM smtp_config WHERE id = 'singleton'")
+    if (!r) return null
+    return {
+      host: r.host, port: r.port, secure: r.secure,
+      user: r.user, password: r.password,
+      fromEmail: r.from_email, fromName: r.from_name,
+      updatedAt: r.updated_at,
+    }
+  },
+
+  saveSmtpConfig: async (cfg: SmtpConfig): Promise<void> => {
+    await query(
+      `INSERT INTO smtp_config (id, host, port, secure, user, password, from_email, from_name, updated_at)
+       VALUES ('singleton', $1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (id) DO UPDATE SET
+         host = EXCLUDED.host, port = EXCLUDED.port, secure = EXCLUDED.secure,
+         "user" = EXCLUDED."user", password = EXCLUDED.password,
+         from_email = EXCLUDED.from_email, from_name = EXCLUDED.from_name,
+         updated_at = EXCLUDED.updated_at`,
+      [cfg.host, cfg.port, cfg.secure, cfg.user, cfg.password, cfg.fromEmail, cfg.fromName, cfg.updatedAt],
+    )
   },
 }

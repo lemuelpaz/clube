@@ -121,6 +121,17 @@ export interface PaymentConfig {
   updatedAt: string
 }
 
+export interface SmtpConfig {
+  host: string
+  port: number
+  secure: boolean
+  user: string
+  password: string
+  fromEmail: string
+  fromName: string
+  updatedAt: string
+}
+
 export interface ProfileVisit {
   id: string
   visitorId: string

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Users, Shield, Crown, Heart, MessageCircle, TrendingUp, ChevronRight, AlertCircle, ArrowDownToLine, Key, Tag, DollarSign } from 'lucide-react'
+import { Users, Shield, Crown, Heart, MessageCircle, TrendingUp, ChevronRight, AlertCircle, ArrowDownToLine, Key, Tag, DollarSign, Mail } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
 interface Stats {
@@ -75,7 +75,8 @@ export default function AdminDashboard() {
               { href: '/admin/withdrawals', icon: ArrowDownToLine, title: 'Saques Pendentes', desc: 'Aprovar ou rejeitar solicitações de saque' },
               { href: '/admin/plans', icon: DollarSign, title: 'Preços dos Planos', desc: 'Ajustar valores das assinaturas' },
               { href: '/admin/promotions', icon: Tag, title: 'Promoções', desc: 'Criar e gerenciar cupons de desconto' },
-              { href: '/admin/payment-config', icon: Key, title: 'Gateway PIX (PixUp)', desc: 'Configurar chaves de API do gateway' },
+              { href: '/admin/payment-config', icon: Key, title: 'Gateway de Pagamento', desc: 'Configurar Stripe ou PixUp' },
+              { href: '/admin/smtp', icon: Mail, title: 'E-mail (SMTP)', desc: 'Configurar Gmail para envio de e-mails' },
               { href: '/admin/users', icon: Users, title: 'Gerenciar Usuários', desc: 'Suspender, banir ou reativar contas' },
               { href: '/admin/financial', icon: Crown, title: 'Relatório Financeiro', desc: 'Assinaturas e receita' },
             ].map(({ href, icon: Icon, title, desc, urgent }) => (
