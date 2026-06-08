@@ -114,7 +114,14 @@ export default function MyProfilePage() {
 
   async function toggleHidden() {
     const next = !profile.hidden
-    await patchUser({ hidden: next })
+    // Optimistic update
+    setProfile((p: any) => ({ ...p, hidden: next }))
+    try {
+      await patchUser({ hidden: next })
+    } catch {
+      // Revert on failure
+      setProfile((p: any) => ({ ...p, hidden: !next }))
+    }
   }
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {

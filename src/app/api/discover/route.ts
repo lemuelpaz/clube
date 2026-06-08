@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { query } from '@/lib/pool'
 import { calculateAge } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -20,20 +21,35 @@ export async function GET(req: NextRequest) {
   const city = url.searchParams.get('city') ?? ''
   const onlyVerified = url.searchParams.get('verified') === 'true'
 
-  const allUsers = await db.getUsers()
   const blocked = await db.getBlockedIds(userId)
   const liked = (await db.getLikesByUser(userId)).map(l => l.toUserId)
 
   // Male users see female profiles, female users see male profiles
   const targetRole = role === 'MALE' ? 'FEMALE' : 'MALE'
 
-  let profiles = allUsers.filter(u => {
-    if (u.id === userId) return false
-    if (u.role !== targetRole) return false
-    if (u.status !== 'ACTIVE') return false
-    if (u.hidden) return false
+  // Filter hidden profiles at SQL level to guarantee exclusion
+  const rows = await query(
+    `SELECT * FROM users
+     WHERE role = $1
+       AND status = 'ACTIVE'
+       AND id != $2
+       AND (hidden IS NULL OR hidden = false)
+     ORDER BY created_at DESC`,
+    [targetRole, userId],
+  )
+
+  // Import rowToUser indirectly via getUserById shape — map manually
+  let profiles = rows.map((r: any) => ({
+    id: r.id, name: r.name, email: r.email, password: r.password,
+    role: r.role, status: r.status, cpf: r.cpf,
+    phone: r.phone, birthDate: r.birth_date,
+    city: r.city, state: r.state, photos: r.photos ?? [],
+    bio: r.bio, interests: r.interests ?? [],
+    sugarProfile: r.sugar_profile, verified: r.verified,
+    hidden: r.hidden ?? false, balance: Number(r.balance ?? 0),
+    lastSeen: r.last_seen, createdAt: r.created_at,
+  })).filter((u: any) => {
     if (blocked.includes(u.id)) return false
-    if (role === 'FEMALE' && !onlyVerified) return true
     if (role === 'MALE' && !u.verified) return false // males only see verified females
     return true
   })
