@@ -24,6 +24,17 @@ interface MatchData {
   unreadCount: number
 }
 
+function formatLastMessage(content: string): string {
+  if (content.startsWith('{')) {
+    try {
+      const p = JSON.parse(content)
+      if (p.type === 'hot_request') return '🔥 Solicitação de Foto Exclusiva'
+      if (p.type === 'hot_photo') return '📸 Envio de foto exclusiva'
+    } catch {}
+  }
+  return content
+}
+
 export default function MatchesPage() {
   const [matches, setMatches] = useState<MatchData[]>([])
   const [loading, setLoading] = useState(true)
@@ -136,7 +147,7 @@ export default function MatchesPage() {
                   <div className="p-2.5 pt-2">
                     <p className={`text-xs truncate mb-2 ${match.unreadCount > 0 ? 'text-dark-50 font-semibold' : 'text-dark-300'}`}>
                       {match.lastMessage
-                        ? match.lastMessage.content
+                        ? formatLastMessage(match.lastMessage.content)
                         : '✨ Novo match! Diga olá'}
                     </p>
                     <div className="flex gap-1.5">
