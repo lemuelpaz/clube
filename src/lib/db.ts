@@ -472,6 +472,11 @@ export const db = {
     return rows.map(rowToReport)
   },
 
+  updateReport: async (id: string, updates: Partial<{ status: string }>): Promise<void> => {
+    const sets = Object.entries(updates).map(([k, _], i) => `${k} = $${i + 2}`).join(', ')
+    await query(`UPDATE reports SET ${sets} WHERE id = $1`, [id, ...Object.values(updates)])
+  },
+
   // ── Blocks ─────────────────────────────────────────────────────────────────
   createBlock: async (b: Block): Promise<Block> => {
     await query(

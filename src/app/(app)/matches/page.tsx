@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Heart, MessageCircle, MapPin, Shield, Ban } from 'lucide-react'
+import { useSession } from 'next-auth/react'
+import { Heart, MessageCircle, MapPin, Shield, Ban, EyeOff } from 'lucide-react'
 import { calculateAge, timeAgo, isOnline } from '@/lib/utils'
 
 interface MatchData {
@@ -36,8 +37,12 @@ function formatLastMessage(content: string): string {
 }
 
 export default function MatchesPage() {
+  const { data: session } = useSession()
+  const userId = (session?.user as any)?.id
+
   const [matches, setMatches] = useState<MatchData[]>([])
   const [loading, setLoading] = useState(true)
+  const [isHidden, setIsHidden] = useState(false)
   const [blockTarget, setBlockTarget] = useState<{ id: string; name: string } | null>(null)
   const [blocking, setBlocking] = useState(false)
 
@@ -47,6 +52,14 @@ export default function MatchesPage() {
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    if (!userId) return
+    fetch(`/api/users/${userId}`)
+      .then(r => r.json())
+      .then(d => { if (d.user) setIsHidden(!!d.user.hidden) })
+      .catch(() => {})
+  }, [userId])
 
   async function confirmBlock() {
     if (!blockTarget) return
@@ -69,6 +82,23 @@ export default function MatchesPage() {
           <div className="text-sm text-dark-300">{matches.length} match{matches.length !== 1 ? 'es' : ''}</div>
         </div>
       </div>
+
+      {isHidden && (
+        <div className="max-w-5xl mx-auto px-6 pt-4">
+          <div className="flex items-start gap-3 bg-yellow-500/10 border border-yellow-500/25 rounded-xl px-4 py-3">
+            <EyeOff size={18} className="text-yellow-400 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-yellow-300">Seu perfil está oculto</p>
+              <p className="text-xs text-dark-300 mt-0.5">
+                Você não aparece em Descobrir e não pode receber novos matches. Seus matches existentes continuam ativos.
+              </p>
+            </div>
+            <Link href="/profile" className="shrink-0 text-xs bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap">
+              Reativar
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-5xl mx-auto p-6">
         {loading ? (
