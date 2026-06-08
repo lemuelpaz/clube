@@ -54,7 +54,9 @@ export default function MyProfilePage() {
   // Photos
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const avatarFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -127,6 +129,20 @@ export default function MyProfilePage() {
     if (lightboxIdx !== null) setLightboxIdx(null)
   }
 
+  async function handleChangeProfilePhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingPhoto(true)
+    setShowAvatarMenu(false)
+    const compressed = await compressImage(file)
+    const current: string[] = profile.photos ?? []
+    // Replace index 0 (profile photo), keep the rest
+    const newPhotos = [compressed, ...current.slice(1)]
+    await patchUser({ photos: newPhotos })
+    setUploadingPhoto(false)
+    if (avatarFileRef.current) avatarFileRef.current.value = ''
+  }
+
   function toggleInterest(i: string) {
     setSelectedInterests(prev =>
       prev.includes(i) ? prev.filter(x => x !== i) : prev.length < 8 ? [...prev, i] : prev
@@ -168,27 +184,59 @@ export default function MyProfilePage() {
 
         {/* Avatar */}
         <div className="absolute left-5 -bottom-14">
-          <div className="relative group">
-            <div className="w-28 h-28 rounded-full border-4 border-dark-800 overflow-hidden bg-dark-700 shadow-xl">
-              {photos[0] ? (
-                <img src={photos[0]} alt={profile.name} className="w-full h-full object-cover" draggable={false} />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-gold-400">
-                  {profile.name?.[0]}
-                </div>
-              )}
-            </div>
-            {online && (
-              <span className="absolute bottom-1.5 right-1.5 w-4 h-4 rounded-full bg-green-400 border-2 border-dark-800 shadow" />
-            )}
+          <div className="relative">
             <button
-              onClick={() => fileRef.current?.click()}
-              className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              onClick={() => setShowAvatarMenu(v => !v)}
+              className="relative group block"
             >
-              <Camera size={20} className="text-dark-50" />
+              <div className="w-28 h-28 rounded-full border-4 border-dark-800 overflow-hidden bg-dark-700 shadow-xl">
+                {uploadingPhoto ? (
+                  <div className="w-full h-full flex items-center justify-center bg-dark-800">
+                    <div className="w-6 h-6 border-2 border-gold-500/30 border-t-gold-500 rounded-full animate-spin" />
+                  </div>
+                ) : photos[0] ? (
+                  <img src={photos[0]} alt={profile.name} className="w-full h-full object-cover" draggable={false} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-gold-400">
+                    {profile.name?.[0]}
+                  </div>
+                )}
+              </div>
+              {online && !uploadingPhoto && (
+                <span className="absolute bottom-1.5 right-1.5 w-4 h-4 rounded-full bg-green-400 border-2 border-dark-800 shadow" />
+              )}
+              {/* Camera badge */}
+              <span className="absolute bottom-1 right-1 w-7 h-7 rounded-full bg-dark-700 border-2 border-dark-800 flex items-center justify-center shadow">
+                <Camera size={13} className="text-gold-400" />
+              </span>
             </button>
+
+            {/* Avatar context menu */}
+            {showAvatarMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowAvatarMenu(false)} />
+                <div className="absolute left-0 top-full mt-2 z-50 bg-dark-700 border border-dark-500 rounded-xl shadow-xl overflow-hidden w-52">
+                  <button
+                    onClick={() => avatarFileRef.current?.click()}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-dark-100 hover:bg-dark-600 transition-colors text-left"
+                  >
+                    <Camera size={15} className="text-gold-400 shrink-0" />
+                    Alterar foto de perfil
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
+
+        {/* Hidden input for replacing profile photo */}
+        <input
+          ref={avatarFileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleChangeProfilePhoto}
+        />
 
         {/* Edit info button */}
         <div className="absolute right-4 bottom-3">
@@ -339,15 +387,20 @@ export default function MyProfilePage() {
                 <img
                   src={photo}
                   alt={`foto ${i + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer"
                   draggable={false}
                   onClick={() => setLightboxIdx(i)}
                 />
+                {i === 0 && (
+                  <span className="absolute bottom-1.5 left-1.5 bg-gold-500/90 text-dark-900 text-[9px] font-bold px-1.5 py-0.5 rounded-md pointer-events-none">
+                    Principal
+                  </span>
+                )}
                 <button
-                  onClick={() => deletePhoto(i)}
-                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80"
+                  onClick={e => { e.stopPropagation(); deletePhoto(i) }}
+                  className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center opacity-60 hover:opacity-100 group-hover:opacity-100 active:opacity-100 transition-opacity hover:bg-red-500/80"
                 >
-                  <X size={12} className="text-dark-50" />
+                  <X size={13} className="text-white" />
                 </button>
               </div>
             ))}
