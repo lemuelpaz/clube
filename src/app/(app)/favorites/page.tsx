@@ -23,7 +23,7 @@ export default function FavoritesPage() {
 
   async function removeFavorite(id: string) {
     await fetch('/api/favorites', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ favoriteUserId: id }),
     })
     setFavorites(prev => prev.filter(f => f.id !== id))

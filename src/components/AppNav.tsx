@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import { useState, useEffect } from 'react'
 import type { Session } from 'next-auth'
 import { Crown, Compass, Heart, MessageCircle, User, Star, Settings, LogOut, Shield, Wallet } from 'lucide-react'
 
@@ -38,6 +39,23 @@ export default function AppNav({ session }: Props) {
   const user = session.user as any
   const mobileNav = user.role === 'FEMALE' ? FEMALE_MOBILE_NAV : MALE_MOBILE_NAV
 
+  const [totalUnread, setTotalUnread] = useState(0)
+
+  useEffect(() => {
+    async function fetchUnread() {
+      try {
+        const res = await fetch('/api/matches')
+        if (!res.ok) return
+        const data = await res.json()
+        const count = (data.matches ?? []).reduce((sum: number, m: any) => sum + (m.unreadCount ?? 0), 0)
+        setTotalUnread(count)
+      } catch {}
+    }
+    fetchUnread()
+    const interval = setInterval(fetchUnread, 10000)
+    return () => clearInterval(interval)
+  }, [])
+
   return (
     <>
       {/* Desktop sidebar */}
@@ -64,10 +82,18 @@ export default function AppNav({ session }: Props) {
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {SIDEBAR_NAV.map(({ href, icon: Icon, label }) => {
             const active = path.startsWith(href)
+            const isMessages = href === '/messages'
             return (
               <Link key={href} href={href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${active ? 'bg-gold-500/15 text-gold-400 font-medium' : 'text-dark-200 hover:text-dark-50 hover:bg-dark-700'}`}>
-                <Icon size={18} />
+                <span className="relative shrink-0">
+                  <Icon size={18} />
+                  {isMessages && totalUnread > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center leading-none">
+                      {totalUnread > 99 ? '99+' : totalUnread}
+                    </span>
+                  )}
+                </span>
                 {label}
               </Link>
             )
@@ -108,10 +134,18 @@ export default function AppNav({ session }: Props) {
         <div className="flex items-center justify-around px-1 py-2 safe-area-bottom">
           {mobileNav.map(({ href, icon: Icon, label }) => {
             const active = path === href || (href !== '/discover' && path.startsWith(href))
+            const isMessages = href === '/messages'
             return (
               <Link key={href} href={href}
                 className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all min-w-0 ${active ? 'text-gold-400' : 'text-dark-300 hover:text-dark-100'}`}>
-                <Icon size={21} />
+                <span className="relative">
+                  <Icon size={21} />
+                  {isMessages && totalUnread > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center leading-none">
+                      {totalUnread > 99 ? '99+' : totalUnread}
+                    </span>
+                  )}
+                </span>
                 <span className="text-[9px] font-medium truncate">{label}</span>
               </Link>
             )

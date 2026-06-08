@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Heart, Star, Shield, MapPin, MessageCircle,
-  AlertCircle, X, Flame, Grid3X3, ChevronDown, ChevronUp, Flag
+  AlertCircle, X, Flame, Grid3X3, ChevronDown, ChevronUp, Flag, Ban
 } from 'lucide-react'
 import { calculateAge, timeAgo, formatCurrency, isOnline } from '@/lib/utils'
 import WatermarkedPhoto from '@/components/WatermarkedPhoto'
@@ -41,6 +41,8 @@ export default function ProfileDetailPage({ params }: { params: Promise<{ id: st
   const [sugarExpanded, setSugarExpanded] = useState(false)
 
   const [startingConv, setStartingConv] = useState(false)
+  const [blockConfirm, setBlockConfirm] = useState(false)
+  const [blocking, setBlocking] = useState(false)
 
   // Report modal
   const [showReportModal, setShowReportModal] = useState(false)
@@ -112,13 +114,28 @@ export default function ProfileDetailPage({ params }: { params: Promise<{ id: st
   }
 
   async function handleFavorite() {
+    const method = favorited ? 'DELETE' : 'POST'
     const res = await fetch('/api/favorites', {
-      method: 'POST',
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ favoriteUserId: id }),
     })
-    const data = await res.json()
-    if (typeof data.favorited === 'boolean') setFavorited(data.favorited)
+    if (res.ok) setFavorited(!favorited)
+  }
+
+  async function handleBlock() {
+    setBlocking(true)
+    try {
+      await fetch('/api/blocks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockedId: id }),
+      })
+      setBlockConfirm(false)
+      router.push('/discover')
+    } finally {
+      setBlocking(false)
+    }
   }
 
   async function handleReport() {
@@ -236,6 +253,15 @@ export default function ProfileDetailPage({ params }: { params: Promise<{ id: st
               className="p-2 rounded-full border bg-dark-800/80 border-dark-600 text-dark-300 hover:border-red-500/40 hover:text-red-400 transition-all"
             >
               <Flag size={16} />
+            </button>
+
+            {/* Bloquear */}
+            <button
+              onClick={() => setBlockConfirm(true)}
+              title="Bloquear usuário"
+              className="p-2 rounded-full border bg-dark-800/80 border-dark-600 text-dark-300 hover:border-red-500/40 hover:text-red-400 transition-all"
+            >
+              <Ban size={16} />
             </button>
 
             {/* Favoritar */}
@@ -609,6 +635,44 @@ export default function ProfileDetailPage({ params }: { params: Promise<{ id: st
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Block confirmation modal */}
+      {blockConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-6">
+          <div className="glass rounded-2xl border border-red-500/20 w-full max-w-sm p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center shrink-0">
+                <Ban size={18} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="font-bold">Bloquear {profile.name}?</h3>
+                <p className="text-xs text-dark-300 mt-0.5">Este usuário não verá mais seu perfil.</p>
+              </div>
+            </div>
+            <p className="text-sm text-dark-300 mb-5">
+              Após bloquear, esta pessoa não aparecerá mais para você e não poderá te enviar mensagens.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setBlockConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-dark-600 text-dark-200 hover:border-dark-500 text-sm font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleBlock}
+                disabled={blocking}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {blocking
+                  ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <><Ban size={14} />Bloquear</>
+                }
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -23,6 +23,7 @@ export async function GET() {
   return Response.json({ favorites: profiles })
 }
 
+// UPSERT — adds if not already favorited, never deletes. Always returns { favorited: true }.
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return Response.json({ error: 'Não autorizado' }, { status: 401 })
@@ -30,14 +31,28 @@ export async function POST(req: NextRequest) {
   const userId = (session.user as any).id
   const { favoriteUserId } = await req.json()
 
-  if (await db.isFavorite(userId, favoriteUserId)) {
-    await db.deleteFavorite(userId, favoriteUserId)
-    return Response.json({ favorited: false })
-  }
+  if (!favoriteUserId) return Response.json({ error: 'favoriteUserId obrigatório' }, { status: 400 })
 
-  const fav: Favorite = {
-    id: generateId(), userId, favoriteUserId, createdAt: new Date().toISOString(),
+  const already = await db.isFavorite(userId, favoriteUserId)
+  if (!already) {
+    const fav: Favorite = {
+      id: generateId(), userId, favoriteUserId, createdAt: new Date().toISOString(),
+    }
+    await db.createFavorite(fav)
   }
-  await db.createFavorite(fav)
   return Response.json({ favorited: true })
+}
+
+// DELETE — always removes the favorite.
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) return Response.json({ error: 'Não autorizado' }, { status: 401 })
+
+  const userId = (session.user as any).id
+  const { favoriteUserId } = await req.json()
+
+  if (!favoriteUserId) return Response.json({ error: 'favoriteUserId obrigatório' }, { status: 400 })
+
+  await db.deleteFavorite(userId, favoriteUserId)
+  return Response.json({ favorited: false })
 }

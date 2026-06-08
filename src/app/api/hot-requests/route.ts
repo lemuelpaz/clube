@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateId, formatCurrency } from '@/lib/utils'
-import type { HotRequest, Earning } from '@/types'
+import type { HotRequest, Earning, Match, Message } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +13,17 @@ export async function GET(req: NextRequest) {
 
   const userId = (session.user as any).id
   const role = (session.user as any).role
+
+  // Single request lookup
+  const requestId = req.nextUrl.searchParams.get('requestId')
+  if (requestId) {
+    const hotReq = await db.getHotRequestById(requestId)
+    if (!hotReq) return Response.json({ error: 'Não encontrado' }, { status: 404 })
+    if (hotReq.requesterId !== userId && hotReq.targetId !== userId) {
+      return Response.json({ error: 'Sem permissão' }, { status: 403 })
+    }
+    return Response.json({ request: hotReq })
+  }
 
   if (role === 'MALE') {
     const rawRequests = await db.getHotRequestsByRequester(userId)
@@ -57,6 +68,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'Destinatário inválido' }, { status: 404 })
   }
 
+  const now = new Date().toISOString()
   const request: HotRequest = {
     id: generateId(),
     requesterId: userId,
@@ -64,10 +76,31 @@ export async function POST(req: NextRequest) {
     price: Number(price),
     message: message?.trim(),
     status: 'PENDING',
-    createdAt: new Date().toISOString(),
+    createdAt: now,
   }
 
   await db.createHotRequest(request)
+
+  // Inject a system message into the chat between requester and target
+  try {
+    let match = await db.getMatchBetween(userId, targetId)
+    if (!match) {
+      match = { id: generateId(), user1Id: userId, user2Id: targetId, createdAt: now } as Match
+      await db.createMatch(match)
+    }
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    const sysMsg: Message = {
+      id: generateId(),
+      matchId: match.id,
+      senderId: userId,
+      content: JSON.stringify({ type: 'hot_request', requestId: request.id, price: Number(price), note: message?.trim() || '' }),
+      read: false,
+      createdAt: now,
+      expiresAt,
+    }
+    await db.createMessage(sysMsg)
+  } catch { /* non-fatal */ }
+
   return Response.json({ request }, { status: 201 })
 }
 
@@ -101,6 +134,25 @@ export async function PATCH(req: NextRequest) {
     if (action === 'send_photo') {
       if (!photoUrl) return Response.json({ error: 'photoUrl obrigatório' }, { status: 400 })
       const updated = await db.updateHotRequest(requestId, { status: 'PHOTO_SENT', photoUrl, respondedAt: now })
+
+      // Inject locked photo message into the chat
+      try {
+        const match = await db.getMatchBetween(hotReq.requesterId, hotReq.targetId)
+        if (match) {
+          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          const photoMsg: Message = {
+            id: generateId(),
+            matchId: match.id,
+            senderId: userId,
+            content: JSON.stringify({ type: 'hot_photo', requestId, price: hotReq.price, photoUrl }),
+            read: false,
+            createdAt: now,
+            expiresAt,
+          }
+          await db.createMessage(photoMsg)
+        }
+      } catch { /* non-fatal */ }
+
       return Response.json({ request: updated })
     }
   }
@@ -123,7 +175,7 @@ export async function PATCH(req: NextRequest) {
           userId: hotReq.targetId,
           amount: earned,
           type: 'HOT_PHOTO_SOLD',
-          description: `Foto hot vendida por ${formatCurrency(hotReq.price)}`,
+          description: `Foto exclusiva vendida por ${formatCurrency(hotReq.price)}`,
           fromUserId: userId,
           createdAt: now,
         }
