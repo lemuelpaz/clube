@@ -209,8 +209,8 @@ CREATE TABLE IF NOT EXISTS smtp_config (
   host TEXT NOT NULL,
   port INTEGER NOT NULL,
   secure BOOLEAN NOT NULL DEFAULT FALSE,
-  user TEXT NOT NULL,
-  password TEXT NOT NULL,
+  username TEXT NOT NULL,
+  smtp_password TEXT NOT NULL,
   from_email TEXT NOT NULL,
   from_name TEXT NOT NULL DEFAULT 'Clube Elite',
   updated_at TEXT NOT NULL

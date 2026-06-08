@@ -734,7 +734,7 @@ export const db = {
     if (!r) return null
     return {
       host: r.host, port: r.port, secure: r.secure,
-      user: r.user, password: r.password,
+      user: r.username, password: r.smtp_password,
       fromEmail: r.from_email, fromName: r.from_name,
       updatedAt: r.updated_at,
     }
@@ -742,11 +742,11 @@ export const db = {
 
   saveSmtpConfig: async (cfg: SmtpConfig): Promise<void> => {
     await query(
-      `INSERT INTO smtp_config (id, host, port, secure, user, password, from_email, from_name, updated_at)
+      `INSERT INTO smtp_config (id, host, port, secure, username, smtp_password, from_email, from_name, updated_at)
        VALUES ('singleton', $1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (id) DO UPDATE SET
          host = EXCLUDED.host, port = EXCLUDED.port, secure = EXCLUDED.secure,
-         "user" = EXCLUDED."user", password = EXCLUDED.password,
+         username = EXCLUDED.username, smtp_password = EXCLUDED.smtp_password,
          from_email = EXCLUDED.from_email, from_name = EXCLUDED.from_name,
          updated_at = EXCLUDED.updated_at`,
       [cfg.host, cfg.port, cfg.secure, cfg.user, cfg.password, cfg.fromEmail, cfg.fromName, cfg.updatedAt],
