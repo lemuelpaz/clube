@@ -102,7 +102,7 @@ export default function RegisterPage() {
     if (role === 'FEMALE') {
       setStep('questionnaire')
     } else {
-      submitRegistration()
+      setStep('photos')
     }
   }
 
@@ -179,17 +179,19 @@ export default function RegisterPage() {
     await submitRegistration()
   }
 
-  // Step indicator for female flow
+  // Step indicator
   const FEMALE_STEPS = ['Dados', 'Perfil', 'Fotos']
-  const stepIndex = step === 'form' ? 0 : step === 'questionnaire' ? 1 : step === 'photos' ? 2 : -1
+  const MALE_STEPS = ['Dados', 'Fotos']
+  const STEPS = role === 'FEMALE' ? FEMALE_STEPS : MALE_STEPS
+  const stepIndex = step === 'form' ? 0 : step === 'questionnaire' ? 1 : step === 'photos' ? (role === 'FEMALE' ? 2 : 1) : -1
 
   function StepBar() {
-    if (role !== 'FEMALE' || stepIndex < 0) return null
+    if (stepIndex < 0) return null
     return (
-      <div className="flex items-center gap-0 mb-6">
-        {FEMALE_STEPS.map((label, i) => (
+      <div className="flex items-center mb-6">
+        {STEPS.map((label, i) => (
           <div key={label} className="flex items-center flex-1">
-            <div className={`flex items-center gap-1.5 flex-1 ${i < FEMALE_STEPS.length - 1 ? '' : ''}`}>
+            <div className="flex items-center gap-1.5">
               <div className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 transition-all ${
                 i < stepIndex ? 'bg-gold-500 text-dark-900' :
                 i === stepIndex ? 'bg-gold-500/20 border-2 border-gold-500 text-gold-400' :
@@ -200,10 +202,10 @@ export default function RegisterPage() {
               <span className={`text-xs font-medium ${i === stepIndex ? 'text-gold-400' : i < stepIndex ? 'text-dark-200' : 'text-dark-500'}`}>
                 {label}
               </span>
-              {i < FEMALE_STEPS.length - 1 && (
-                <div className={`flex-1 h-px mx-2 ${i < stepIndex ? 'bg-gold-500/40' : 'bg-dark-600'}`} />
-              )}
             </div>
+            {i < STEPS.length - 1 && (
+              <div className={`flex-1 h-px mx-2 ${i < stepIndex ? 'bg-gold-500/40' : 'bg-dark-600'}`} />
+            )}
           </div>
         ))}
       </div>
@@ -253,7 +255,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-2xl">
         <div className="glass rounded-2xl p-8 border border-gold-500/10">
           <div className="flex items-center gap-3 mb-2">
-            <button onClick={() => { setStep('questionnaire'); setError('') }} className="text-dark-300 hover:text-dark-50 transition-colors">←</button>
+            <button onClick={() => { setStep(role === 'FEMALE' ? 'questionnaire' : 'form'); setError('') }} className="text-dark-300 hover:text-dark-50 transition-colors">←</button>
             <div>
               <h1 className="text-xl font-bold">Fotos do Perfil</h1>
               <p className="text-dark-200 text-sm">Adicione fotos para atrair mais matches</p>
@@ -517,7 +519,7 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {role === 'FEMALE' && <StepBar />}
+        <StepBar />
 
         <form onSubmit={handleFormNext} className="space-y-4">
           {/* Nome */}
@@ -622,10 +624,8 @@ export default function RegisterPage() {
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-dark-900/30 border-t-dark-900 rounded-full animate-spin" />
-            ) : role === 'FEMALE' ? (
-              <><span>Próximo</span><ChevronRight size={18} /></>
             ) : (
-              <><span>Criar Conta</span><ChevronRight size={18} /></>
+              <><span>Próximo</span><ChevronRight size={18} /></>
             )}
           </button>
         </form>

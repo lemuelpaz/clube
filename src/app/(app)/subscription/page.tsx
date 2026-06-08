@@ -81,7 +81,7 @@ export default function SubscriptionPage() {
   useEffect(() => {
     Promise.all([
       fetch('/api/subscriptions').then(r => r.json()),
-      fetch('/api/admin/plans').then(r => r.json()).catch(() => null),
+      fetch('/api/plans').then(r => r.json()).catch(() => null),
     ]).then(([subData, plansData]) => {
       if (subData.active) setActive(subData.active)
       if (plansData?.prices?.length) {
