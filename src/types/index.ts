@@ -114,7 +114,7 @@ export interface WithdrawalRequest {
 }
 
 export interface PaymentConfig {
-  provider: 'PIXUP'
+  provider: 'PIXUP' | 'STRIPE'
   clientId: string
   clientSecret: string
   sandbox: boolean

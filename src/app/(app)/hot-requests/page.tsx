@@ -77,7 +77,7 @@ export default function HotRequestsPage() {
             <ArrowLeft size={20} />
           </Link>
           <Flame size={18} className="text-orange-400" />
-          <h1 className="font-bold">Fotos Hot</h1>
+          <h1 className="font-bold">Fotos Exclusivas</h1>
         </div>
       </div>
 

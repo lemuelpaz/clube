@@ -615,7 +615,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
       {/* Foto Exclusiva Modal */}
       {showHotModal && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="glass rounded-2xl p-6 border border-pink-500/20 w-full max-w-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -666,7 +666,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                 </div>
 
                 <p className="text-xs text-dark-400 mb-4">
-                  Você paga {formatCurrency(hotPrice)} ao desbloquear. {otherUser?.name} recebe 60%.
+                  Você paga {formatCurrency(hotPrice)} ao desbloquear a foto exclusiva.
                 </p>
 
                 <button

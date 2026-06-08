@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   Heart, Star, MapPin, Shield, SlidersHorizontal, LayoutGrid, Play,
-  ChevronUp, ChevronDown, Crown, Info, X, Ban
+  ChevronUp, ChevronDown, Crown, Info, X, Ban, EyeOff
 } from 'lucide-react'
 import { calculateAge, STATES } from '@/lib/utils'
 import Link from 'next/link'
@@ -25,8 +25,11 @@ interface Profile {
 
 export default function DiscoverPage() {
   const { data: session } = useSession()
+  const userId = (session?.user as any)?.id
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
+  const [isHidden, setIsHidden] = useState(false)
+  const [hiddenChecked, setHiddenChecked] = useState(false)
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set())
   const [matchedProfile, setMatchedProfile] = useState<Profile | null>(null)
@@ -34,6 +37,17 @@ export default function DiscoverPage() {
   const [limitModal, setLimitModal] = useState<'subscription' | 'verification' | null>(null)
   const [viewMode, setViewMode] = useState<'feed' | 'grid'>('feed')
   const [filters, setFilters] = useState({ state: '', city: '', minAge: 18, maxAge: 60 })
+
+  useEffect(() => {
+    if (!userId) return
+    fetch(`/api/users/${userId}`)
+      .then(r => r.json())
+      .then(d => {
+        setIsHidden(!!d.user?.hidden)
+        setHiddenChecked(true)
+      })
+      .catch(() => setHiddenChecked(true))
+  }, [userId])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -50,7 +64,10 @@ export default function DiscoverPage() {
     setLoading(false)
   }, [filters])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    if (hiddenChecked && !isHidden) load()
+    else if (hiddenChecked && isHidden) setLoading(false)
+  }, [load, hiddenChecked, isHidden])
 
   async function handleLike(profileId: string) {
     if (likedIds.has(profileId)) return
@@ -168,7 +185,32 @@ export default function DiscoverPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {loading ? (
+        {!hiddenChecked ? (
+          <div className="h-full flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-gold-500/30 border-t-gold-500 rounded-full animate-spin" />
+          </div>
+        ) : isHidden ? (
+          <div className="h-full flex flex-col items-center justify-center gap-5 p-8 text-center">
+            <div className="w-20 h-20 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
+              <EyeOff size={36} className="text-yellow-400" />
+            </div>
+            <div className="max-w-xs space-y-2">
+              <h2 className="text-xl font-bold text-yellow-300">Perfil oculto</h2>
+              <p className="text-dark-300 text-sm leading-relaxed">
+                Seu perfil está oculto. Você não aparece em Descobrir e não pode dar match com novas pessoas.
+              </p>
+              <p className="text-dark-400 text-xs">
+                Seus matches existentes continuam ativos e você pode seguir conversando normalmente.
+              </p>
+            </div>
+            <Link
+              href="/profile"
+              className="mt-2 px-6 py-3 rounded-full bg-yellow-500/15 hover:bg-yellow-500/25 border border-yellow-500/30 text-yellow-400 text-sm font-semibold transition-colors"
+            >
+              Reativar perfil
+            </Link>
+          </div>
+        ) : loading ? (
           <div className="h-full flex items-center justify-center">
             <div className="w-8 h-8 border-2 border-gold-500/30 border-t-gold-500 rounded-full animate-spin" />
           </div>
@@ -446,7 +488,7 @@ function TikTokCard({ profile, liked, onLike, onFavorite, onBlock, onNext, onPre
       )}
 
       {/* Right side action buttons */}
-      <div className="absolute right-4 bottom-44 flex flex-col items-center gap-5 z-10 md:bottom-36">
+      <div className="absolute right-4 bottom-44 flex flex-col items-center gap-5 z-20 md:bottom-36">
         <button onClick={e => { e.stopPropagation(); onBlock() }} className="flex flex-col items-center gap-1">
           <div className="w-12 h-12 rounded-full bg-black/50 border border-white/20 hover:border-red-500/60 hover:bg-red-500/10 flex items-center justify-center backdrop-blur-sm transition-colors">
             <Ban size={20} className="text-dark-50/70 hover:text-red-400" />
@@ -497,14 +539,14 @@ function TikTokCard({ profile, liked, onLike, onFavorite, onBlock, onNext, onPre
       </div>
 
       {/* Bottom info + match button */}
-      <div className="absolute bottom-0 left-0 right-0 px-5 pb-20 md:pb-6 z-10">
+      <div className="absolute bottom-0 left-0 right-0 px-5 pb-20 md:pb-6 z-10 pointer-events-none">
         {/* Profile info */}
         <div className="mb-4">
           <div className="flex items-end gap-3 mb-1">
             <Link
               href={`/profile/${profile.id}`}
               onClick={e => e.stopPropagation()}
-              className="hover:underline underline-offset-2"
+              className="hover:underline underline-offset-2 pointer-events-auto"
             >
               <h2 className="text-3xl font-bold text-dark-50 leading-none">
                 {profile.name}
@@ -538,7 +580,7 @@ function TikTokCard({ profile, liked, onLike, onFavorite, onBlock, onNext, onPre
         <button
           onClick={onLike}
           disabled={liked}
-          className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-2xl ${liked
+          className={`pointer-events-auto w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-2xl ${liked
             ? 'bg-gold-500/25 border-2 border-gold-500/50 text-gold-400'
             : 'bg-gold-500 hover:bg-gold-400 active:scale-[0.97] text-dark-50'
           }`}

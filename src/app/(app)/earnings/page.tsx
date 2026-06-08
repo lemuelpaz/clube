@@ -191,7 +191,7 @@ export default function EarningsPage() {
           {[
             { label: 'Likes', count: byType.LIKE_RECEIVED.length, value: byType.LIKE_RECEIVED.reduce((s, e) => s + e.amount, 0), color: 'pink' },
             { label: 'Matches', count: byType.MATCH.length, value: byType.MATCH.reduce((s, e) => s + e.amount, 0), color: 'green' },
-            { label: 'Fotos Hot', count: byType.HOT_PHOTO_SOLD.length, value: byType.HOT_PHOTO_SOLD.reduce((s, e) => s + e.amount, 0), color: 'orange' },
+            { label: 'Fotos Exclusivas', count: byType.HOT_PHOTO_SOLD.length, value: byType.HOT_PHOTO_SOLD.reduce((s, e) => s + e.amount, 0), color: 'orange' },
           ].map(s => (
             <div key={s.label} className="glass rounded-xl p-4 border border-dark-600 text-center">
               <p className="text-xs text-dark-400 mb-1">{s.label}</p>
@@ -219,7 +219,7 @@ export default function EarningsPage() {
               {[
                 { label: 'Por cada curtida recebida', amount: 0.50, icon: Heart, color: 'text-pink-400' },
                 { label: 'Por cada match', amount: 2.00, icon: TrendingUp, color: 'text-green-400' },
-                { label: 'Por foto exclusiva vendida', amount: null, icon: Flame, color: 'text-orange-400', note: '60% do valor' },
+                { label: 'Por foto exclusiva vendida', amount: null, icon: Flame, color: 'text-orange-400', note: 'Valor da venda' },
               ].map(({ label, amount, icon: Icon, color, note }) => (
                 <div key={label} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

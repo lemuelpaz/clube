@@ -620,7 +620,7 @@ export default function ProfileDetailPage({ params }: { params: Promise<{ id: st
                 </div>
 
                 <p className="text-xs text-dark-400 mb-4">
-                  Você pagará {formatCurrency(hotPrice)} ao desbloquear. {profile.name} recebe 60%.
+                  Você pagará {formatCurrency(hotPrice)} ao desbloquear a foto exclusiva.
                 </p>
 
                 <button

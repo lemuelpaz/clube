@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { createPixCharge } from '@/lib/pixup'
+import { createStripePixCharge } from '@/lib/stripe'
 import { generateId, PLAN_DURATIONS } from '@/lib/utils'
 import type { Subscription } from '@/types'
 
@@ -26,16 +27,15 @@ export async function POST(req: NextRequest) {
     db.getPaymentConfig(),
     db.getUserById(user.id),
   ])
-  if (!cfg || !cfg.clientId || !cfg.clientSecret)
+  if (!cfg || !cfg.clientSecret)
     return Response.json({ error: 'Gateway de pagamento não configurado. Contate o suporte.' }, { status: 503 })
   if (!fullUser) return Response.json({ error: 'Usuário não encontrado' }, { status: 404 })
 
-  // Fetch price from DB (falls back to hardcoded default)
+  // Fetch price from DB
   let basePrice = await db.getPlanPrice(plan)
   let finalAmount = basePrice
   let promoId: string | undefined
 
-  // Apply promo code if provided
   if (promoCode?.trim()) {
     const now = new Date().toISOString()
     const promo = await db.getPromotionByCode(promoCode)
@@ -60,17 +60,31 @@ export async function POST(req: NextRequest) {
   const subId = generateId()
 
   try {
-    const charge = await createPixCharge(cfg, {
-      amount: finalAmount,
-      externalId: subId,
-      customer: {
-        name: fullUser.name,
-        cpf: fullUser.cpf ?? '00000000000',
-        email: fullUser.email,
-      },
-      description: `Clube Elite - Plano ${plan}`,
-      expirationSeconds: 3600,
-    })
+    let charge: { chargeId: string; qrCodeImage?: string; qrCodeText: string; expiresAt?: string }
+
+    if (cfg.provider === 'STRIPE') {
+      const origin = req.headers.get('origin') ?? 'https://localhost:3000'
+      charge = await createStripePixCharge(cfg.clientSecret, {
+        amount: finalAmount,
+        externalId: subId,
+        description: `Clube Elite - Plano ${plan}`,
+        returnUrl: `${origin}/subscription`,
+      })
+    } else {
+      if (!cfg.clientId)
+        return Response.json({ error: 'Gateway de pagamento não configurado. Contate o suporte.' }, { status: 503 })
+      charge = await createPixCharge(cfg, {
+        amount: finalAmount,
+        externalId: subId,
+        customer: {
+          name: fullUser.name,
+          cpf: fullUser.cpf ?? '00000000000',
+          email: fullUser.email,
+        },
+        description: `Clube Elite - Plano ${plan}`,
+        expirationSeconds: 3600,
+      })
+    }
 
     const now = new Date().toISOString()
     const days = PLAN_DURATIONS[plan]
@@ -105,7 +119,7 @@ export async function POST(req: NextRequest) {
       discount: basePrice - finalAmount,
     })
   } catch (err: any) {
-    console.error('PixUp error:', err)
+    console.error('Payment error:', err)
     return Response.json({ error: err.message ?? 'Erro ao gerar PIX' }, { status: 502 })
   }
 }

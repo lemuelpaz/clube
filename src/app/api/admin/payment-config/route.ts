@@ -13,7 +13,6 @@ export async function GET() {
 
   const cfg = await db.getPaymentConfig()
   if (!cfg) return Response.json({ config: null })
-  // Never expose clientSecret in full
   return Response.json({
     config: { ...cfg, clientSecret: cfg.clientSecret ? '••••••••' : '' },
   })
@@ -25,15 +24,28 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'Não autorizado' }, { status: 401 })
 
   const body = await req.json()
-  const { clientId, clientSecret, sandbox } = body
+  const { provider, clientId, clientSecret, sandbox } = body
 
-  if (!clientId || !clientSecret)
-    return Response.json({ error: 'clientId e clientSecret são obrigatórios' }, { status: 400 })
+  if (!['PIXUP', 'STRIPE'].includes(provider))
+    return Response.json({ error: 'Provider inválido' }, { status: 400 })
+
+  if (provider === 'STRIPE' && !clientSecret)
+    return Response.json({ error: 'Stripe Secret Key é obrigatória' }, { status: 400 })
+
+  if (provider === 'PIXUP' && (!clientId || !clientSecret))
+    return Response.json({ error: 'Client ID e Client Secret são obrigatórios' }, { status: 400 })
+
+  // Load existing config to preserve clientSecret if blank (edit without exposing)
+  const existing = await db.getPaymentConfig()
+  const finalSecret =
+    clientSecret && clientSecret !== '••••••••'
+      ? clientSecret
+      : existing?.clientSecret ?? ''
 
   const cfg: PaymentConfig = {
-    provider: 'PIXUP',
-    clientId,
-    clientSecret,
+    provider,
+    clientId: clientId ?? '',
+    clientSecret: finalSecret,
     sandbox: !!sandbox,
     updatedAt: new Date().toISOString(),
   }
