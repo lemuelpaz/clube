@@ -12,25 +12,30 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Senha', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
+        try {
+          if (!credentials?.email || !credentials?.password) return null
 
-        const user = await db.getUserByEmail(credentials.email)
-        if (!user) return null
+          const user = await db.getUserByEmail(credentials.email)
+          if (!user) { console.error('[auth] user not found:', credentials.email); return null }
 
-        if (user.status === 'BANNED' || user.status === 'SUSPENDED') return null
+          if (user.status === 'BANNED' || user.status === 'SUSPENDED') return null
 
-        const valid = await bcrypt.compare(credentials.password, user.password)
-        if (!valid) return null
+          const valid = await bcrypt.compare(credentials.password, user.password)
+          if (!valid) { console.error('[auth] wrong password for:', credentials.email); return null }
 
-        await db.updateUser(user.id, { lastSeen: new Date().toISOString() })
+          await db.updateUser(user.id, { lastSeen: new Date().toISOString() }).catch(() => {})
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          verified: user.verified,
-        } as any
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            verified: user.verified,
+          } as any
+        } catch (err: any) {
+          console.error('[auth] authorize error:', err?.message ?? err)
+          return null
+        }
       },
     }),
   ],
